@@ -1,0 +1,22 @@
+# Core dependencies
+langgraph
+langchain-openai
+langchain-core
+openai
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+joblib
+openpyxl
+python-dotenv
+
+# Class imbalance handling (SMOTE, ADASYN, etc.)
+imbalanced-learn
+
+# Optional (feature-flagged) - uncomment to enable
+# xgboost
+# lightgbm
+# catboost
+# shap
