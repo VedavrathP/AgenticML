@@ -7,16 +7,16 @@ AgenticML assembles a team of specialised AI agents (Planner, Profiler, Cleaner,
 ## Installation
 
 ```bash
-pip install cortexml
+pip install swayamml
 ```
 
 **Optional providers** (only install the one you use):
 
 ```bash
-pip install cortexml[anthropic]   # Claude models
-pip install cortexml[google]      # Gemini models
-pip install cortexml[boost]       # XGBoost + LightGBM
-pip install cortexml[all]         # Everything
+pip install swayamml[anthropic]   # Claude models
+pip install swayamml[google]      # Gemini models
+pip install swayamml[boost]       # XGBoost + LightGBM
+pip install swayamml[all]         # Everything
 ```
 
 ## Quick Start
@@ -75,8 +75,8 @@ The provider is **auto-detected** from the model name:
 | Model prefix | Provider | Env variable | Install extra |
 |---|---|---|---|
 | `gpt-*`, `o1*`, `o3*` | OpenAI | `OPENAI_API_KEY` | *(included)* |
-| `claude-*` | Anthropic | `ANTHROPIC_API_KEY` | `pip install cortexml[anthropic]` |
-| `gemini-*` | Google | `GOOGLE_API_KEY` | `pip install cortexml[google]` |
+| `claude-*` | Anthropic | `ANTHROPIC_API_KEY` | `pip install swayamml[anthropic]` |
+| `gemini-*` | Google | `GOOGLE_API_KEY` | `pip install swayamml[google]` |
 
 Pass the key directly or set the environment variable:
 

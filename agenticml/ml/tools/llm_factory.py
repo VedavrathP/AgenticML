@@ -29,8 +29,8 @@ _ENV_KEY_MAP: dict[str, str] = {
 
 _INSTALL_HINT: dict[str, str] = {
     "openai": "pip install langchain-openai",
-    "anthropic": "pip install langchain-anthropic   (or: pip install cortexml[anthropic])",
-    "google": "pip install langchain-google-genai  (or: pip install cortexml[google])",
+    "anthropic": "pip install langchain-anthropic   (or: pip install swayamml[anthropic])",
+    "google": "pip install langchain-google-genai  (or: pip install swayamml[google])",
 }
 
 
