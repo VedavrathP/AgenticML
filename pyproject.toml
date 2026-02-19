@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentic-ml"
+name = "cortexml"
 version = "0.1.0"
 description = "Multi-agent ML pipeline — automated machine learning with LangGraph + LLMs"
 readme = "README.md"
@@ -59,8 +59,8 @@ dev = [
 agenticml = "agenticml.ml.main:main"
 
 [project.urls]
-Homepage = "https://github.com/agenticml/agenticml"
-Repository = "https://github.com/agenticml/agenticml"
+Homepage = "https://github.com/VedavrathP/AgenticML"
+Repository = "https://github.com/VedavrathP/AgenticML"
 
 [tool.setuptools.packages.find]
 include = ["agenticml*"]
