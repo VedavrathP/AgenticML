@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-ml"
+version = "0.1.0"
+description = "Multi-agent ML pipeline — automated machine learning with LangGraph + LLMs"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "AgenticML Contributors"},
+]
+keywords = ["machine-learning", "automl", "agents", "langgraph", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "langgraph",
+    "langchain-openai",
+    "langchain-core",
+    "openai",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "joblib",
+    "openpyxl",
+    "python-dotenv",
+    "imbalanced-learn",
+]
+
+[project.optional-dependencies]
+anthropic = ["langchain-anthropic"]
+google = ["langchain-google-genai"]
+boost = ["xgboost", "lightgbm"]
+all = [
+    "langchain-anthropic",
+    "langchain-google-genai",
+    "xgboost",
+    "lightgbm",
+]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+agenticml = "agenticml.ml.main:main"
+
+[project.urls]
+Homepage = "https://github.com/agenticml/agenticml"
+Repository = "https://github.com/agenticml/agenticml"
+
+[tool.setuptools.packages.find]
+include = ["agenticml*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
