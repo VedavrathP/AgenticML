@@ -214,7 +214,7 @@ def run_planner_agent(state: PipelineState) -> PipelineState:
     # Infer problem type if not provided
     problem_type = user_problem_type
     if not problem_type:
-        problem_type = infer_problem_type(df, target)
+        problem_type, _type_rationale = infer_problem_type(df, target)
     
     # =========================================================================
     # Step 3: Analyze class imbalance (for classification)
