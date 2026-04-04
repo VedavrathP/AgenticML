@@ -447,6 +447,8 @@ def apply_feature_engineering_plan(
             - apply_binning: list of {"column": col, "n_bins": n} dicts
             - apply_log_transform: list of columns
             - apply_sqrt_transform: list of columns
+            - create_ratios: list of {"numerator": col, "denominator": col} dicts
+            - create_aggregations: list of {"group_col": col, "agg_cols": [...], "agg_funcs": [...]} dicts
     
     Returns:
         Tuple of (transformed DataFrame, list of new columns, info dict)
@@ -459,6 +461,8 @@ def apply_feature_engineering_plan(
         "binning_applied": [],
         "log_transformed": [],
         "sqrt_transformed": [],
+        "ratios_created": [],
+        "aggregations_created": [],
         "total_new_features": 0
     }
     
@@ -510,7 +514,35 @@ def apply_feature_engineering_plan(
         df, new_cols = apply_sqrt_transform(df, sqrt_cols)
         all_new_columns.extend(new_cols)
         info["sqrt_transformed"] = new_cols
-    
+
+    # Ratio features
+    ratio_specs = plan.get("create_ratios", [])
+    if ratio_specs:
+        for spec in ratio_specs:
+            if isinstance(spec, dict):
+                num_col = spec.get("numerator")
+                denom_col = spec.get("denominator")
+                if num_col and denom_col and num_col != target and denom_col != target:
+                    df, new_cols = create_ratio_features(df, [num_col], [denom_col])
+                    all_new_columns.extend(new_cols)
+                    info["ratios_created"].extend(new_cols)
+
+    # Aggregation features
+    agg_specs = plan.get("create_aggregations", [])
+    if agg_specs:
+        for spec in agg_specs:
+            if isinstance(spec, dict):
+                group_col = spec.get("group_col")
+                agg_cols = spec.get("agg_cols", [])
+                agg_funcs = spec.get("agg_funcs", ["mean", "std"])
+                agg_cols = [c for c in agg_cols if c != target]
+                if group_col and agg_cols and group_col != target:
+                    df, new_cols = create_aggregation_features(
+                        df, group_col, agg_cols, agg_funcs,
+                    )
+                    all_new_columns.extend(new_cols)
+                    info["aggregations_created"].extend(new_cols)
+
     info["total_new_features"] = len(all_new_columns)
     
     return df, all_new_columns, info

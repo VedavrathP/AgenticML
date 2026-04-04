@@ -105,6 +105,13 @@ def apply_cleaning(
                 step_result["message"] = msg
                 step_result["success"] = True
             
+            elif action == "remove_outliers":
+                method = params.get("method", "iqr")
+                threshold = params.get("threshold", 1.5)
+                df_cleaned, msg = _remove_outliers(df_cleaned, column, method, threshold)
+                step_result["message"] = msg
+                step_result["success"] = True
+            
             elif action == "convert_dtype":
                 dtype = params.get("dtype")
                 df_cleaned, msg = _convert_dtype(df_cleaned, column, dtype)
@@ -302,6 +309,47 @@ def _clip_outliers(
     return df, f"Clipped {n_clipped} outliers in '{column}' to [{lower:.2f}, {upper:.2f}]"
 
 
+def _remove_outliers(
+    df: pd.DataFrame,
+    column: str,
+    method: str,
+    threshold: float
+) -> tuple[pd.DataFrame, str]:
+    """Remove rows that contain outlier values in a column."""
+    if column not in df.columns:
+        return df, f"Column '{column}' not found"
+
+    if not pd.api.types.is_numeric_dtype(df[column]):
+        return df, f"Column '{column}' is not numeric, skipping"
+
+    col_data = df[column].dropna()
+
+    if method == "iqr":
+        q1 = col_data.quantile(0.25)
+        q3 = col_data.quantile(0.75)
+        iqr = q3 - q1
+        lower = q1 - threshold * iqr
+        upper = q3 + threshold * iqr
+    elif method == "zscore":
+        mean = col_data.mean()
+        std = col_data.std()
+        if std == 0:
+            return df, f"Column '{column}' has zero std, skipping"
+        lower = mean - threshold * std
+        upper = mean + threshold * std
+    elif method == "percentile":
+        lower = col_data.quantile(threshold / 100)
+        upper = col_data.quantile(1 - threshold / 100)
+    else:
+        return df, f"Unknown method: {method}"
+
+    outlier_mask = (df[column] < lower) | (df[column] > upper)
+    n_outliers = outlier_mask.sum()
+    df = df[~outlier_mask].reset_index(drop=True)
+
+    return df, f"Removed {n_outliers} outlier rows in '{column}' (bounds [{lower:.2f}, {upper:.2f}])"
+
+
 def _convert_dtype(
     df: pd.DataFrame,
     column: str,
@@ -431,7 +479,11 @@ def get_cleaning_stats(
     return stats
 
 
-def suggest_cleaning_steps(profile: dict) -> list[dict]:
+def suggest_cleaning_steps(
+    profile: dict,
+    outlier_summary: Optional[dict] = None,
+    high_correlation_pairs: Optional[list[dict]] = None,
+) -> list[dict]:
     """
     Suggest cleaning steps based on a data profile.
     
@@ -440,6 +492,8 @@ def suggest_cleaning_steps(profile: dict) -> list[dict]:
     
     Args:
         profile: Profile dict from profile_dataframe
+        outlier_summary: Optional per-column outlier info from detect_outliers
+        high_correlation_pairs: Optional list of highly correlated feature pairs
     
     Returns:
         List of suggested cleaning step dicts
@@ -462,7 +516,6 @@ def suggest_cleaning_steps(profile: dict) -> list[dict]:
                 "rationale": f"Column has {pct:.1f}% missing values"
             })
         elif pct > 0:
-            # Suggest fill strategy based on column type
             if col in profile.get("numeric_columns", []):
                 suggestions.append({
                     "action": "fill_missing",
@@ -484,5 +537,58 @@ def suggest_cleaning_steps(profile: dict) -> list[dict]:
         "params": {"keep": "first"},
         "rationale": "Remove any duplicate rows"
     })
-    
+
+    # Suggest outlier removal for columns with significant outliers
+    if outlier_summary:
+        for col, info in outlier_summary.items():
+            pct = info.get("outlier_percentage", 0)
+            n = info.get("n_outliers", 0)
+            if 0 < pct <= 10:
+                suggestions.append({
+                    "action": "remove_outliers",
+                    "column": col,
+                    "params": {"method": "iqr", "threshold": 1.5},
+                    "rationale": (
+                        f"Column '{col}' has {n} outliers ({pct:.1f}%). "
+                        f"Removing rows to improve model quality."
+                    ),
+                })
+            elif pct > 10:
+                suggestions.append({
+                    "action": "clip_outliers",
+                    "column": col,
+                    "params": {"method": "iqr", "threshold": 1.5},
+                    "rationale": (
+                        f"Column '{col}' has {n} outliers ({pct:.1f}%). "
+                        f"Clipping instead of removing to preserve data."
+                    ),
+                })
+
+    # Suggest dropping one column from each highly correlated pair
+    if high_correlation_pairs:
+        already_dropped: set[str] = set()
+        for pair in sorted(
+            high_correlation_pairs,
+            key=lambda p: abs(p.get("correlation", 0)),
+            reverse=True,
+        ):
+            col1 = pair.get("column1", "")
+            col2 = pair.get("column2", "")
+            corr = pair.get("correlation", 0)
+            if col1 in already_dropped or col2 in already_dropped:
+                continue
+            # Drop the column with more missing values; tie-break alphabetically
+            missing = profile.get("missing_percentages", {})
+            drop_col = col2 if missing.get(col2, 0) >= missing.get(col1, 0) else col1
+            keep_col = col1 if drop_col == col2 else col2
+            already_dropped.add(drop_col)
+            suggestions.append({
+                "action": "drop_column",
+                "column": drop_col,
+                "rationale": (
+                    f"Highly correlated with '{keep_col}' (r={corr:.2f}). "
+                    f"Dropping to reduce multicollinearity."
+                ),
+            })
+
     return suggestions

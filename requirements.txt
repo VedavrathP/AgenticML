@@ -15,7 +15,12 @@ python-dotenv
 # Class imbalance handling (SMOTE, ADASYN, etc.)
 imbalanced-learn
 
+# Streamlit UI
+streamlit
+
 # Optional (feature-flagged) - uncomment to enable
+# langchain-anthropic
+# langchain-google-genai
 # xgboost
 # lightgbm
 # catboost

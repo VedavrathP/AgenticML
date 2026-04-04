@@ -1,13 +1,18 @@
 """
-AgenticML - Multi-Agent Machine Learning System
+AgenticML — Orchestrator-Centered Multi-Agent ML System.
 
-An agentic, iterative, auditable ML pipeline where agents collaborate
-like a real ML team using LangGraph + LLMs.
+An agentic ML pipeline where a central Orchestrator dynamically routes
+user requests to specialised analytical agents via LangGraph + LLMs.
 
 Subpackages:
-    ml - Automated machine learning pipeline
+    ml       - Legacy tool functions and configuration
+    state    - Shared WorkflowState
+    agents   - Specialised analytical agents
+    orchestrator - Central orchestrator and intent parsing
+    graph    - LangGraph definition
+    services - LLM and artifact services
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from agenticml import ml  # noqa: F401 — enable `from agenticml import ml`
+from agenticml import ml  # noqa: F401 — backward compatibility

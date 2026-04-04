@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "swayamml"
-version = "0.1.0"
+version = "0.2.0"
 description = "Multi-agent ML pipeline — automated machine learning with LangGraph + LLMs"
 readme = "README.md"
 license = {text = "MIT"}
@@ -38,6 +38,7 @@ dependencies = [
     "openpyxl",
     "python-dotenv",
     "imbalanced-learn",
+    "streamlit",
 ]
 
 [project.optional-dependencies]
