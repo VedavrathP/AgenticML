@@ -172,6 +172,23 @@ def get_sample_data(
     return df.head(n_rows)
 
 
+def resolve_column_name(df: pd.DataFrame, name: str) -> str:
+    """
+    Return the actual column label in ``df`` for ``name``.
+
+    If ``name`` is not present (e.g. after ``rename_column`` or
+    ``lowercase_column_names``), match case-insensitively so ``state['target']``
+    stays aligned with the cleaned DataFrame.
+    """
+    if name in df.columns:
+        return name
+    lower = name.lower()
+    for col in df.columns:
+        if str(col).lower() == lower:
+            return col
+    return name
+
+
 def split_features_target(
     df: pd.DataFrame,
     target_column: str
@@ -189,6 +206,7 @@ def split_features_target(
     Raises:
         ValueError: If target column doesn't exist
     """
+    target_column = resolve_column_name(df, target_column)
     if target_column not in df.columns:
         raise ValueError(f"Target column '{target_column}' not found in DataFrame")
     

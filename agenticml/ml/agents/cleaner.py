@@ -15,7 +15,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from agenticml.ml.state import PipelineState, log_decision, add_artifact, add_error
 from agenticml.ml.config import get_config
-from agenticml.ml.tools.data_io import load_dataframe, save_dataframe
+from agenticml.ml.tools.data_io import load_dataframe, save_dataframe, resolve_column_name
 from agenticml.ml.tools.cleaning import apply_cleaning, get_cleaning_stats, suggest_cleaning_steps
 from agenticml.ml.tools.artifacts import save_json
 from agenticml.ml.tools.utils import get_run_subdir, safe_json_serialize
@@ -141,6 +141,18 @@ def run_cleaner_agent(state: PipelineState) -> PipelineState:
     # Step 4: Execute the cleaning plan
     # =========================================================================
     df_cleaned, cleaning_report = apply_cleaning(df, cleaning_plan)
+
+    resolved_target = resolve_column_name(df_cleaned, target)
+    if resolved_target != target:
+        log_decision(
+            state,
+            "cleaner",
+            f"Synced target column after cleaning: '{target}' → '{resolved_target}'",
+            "Cleaning steps renamed columns (e.g. lowercase); state target updated to match.",
+            {"previous_target": target, "resolved_target": resolved_target},
+        )
+        state["target"] = resolved_target
+        target = resolved_target
     
     # =========================================================================
     # Step 5: Calculate before/after statistics

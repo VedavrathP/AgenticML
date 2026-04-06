@@ -15,7 +15,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from agenticml.agents.base_agent import BaseAgent
 from agenticml.ml.config import get_config
-from agenticml.ml.tools.data_io import load_dataframe, save_dataframe
+from agenticml.ml.tools.data_io import load_dataframe, save_dataframe, resolve_column_name
 from agenticml.ml.tools.cleaning import (
     apply_cleaning,
     get_cleaning_stats,
@@ -150,6 +150,18 @@ class DataPreprocessingAgent(BaseAgent):
         # 4. Execute the cleaning plan
         # ==================================================================
         df_cleaned, cleaning_report = apply_cleaning(df, cleaning_plan)
+
+        resolved_target = resolve_column_name(df_cleaned, target)
+        if resolved_target != target:
+            log_decision(
+                state,
+                self.name,
+                f"Synced target column after cleaning: '{target}' → '{resolved_target}'",
+                "Cleaning steps renamed columns (e.g. lowercase); state target updated to match.",
+                {"previous_target": target, "resolved_target": resolved_target},
+            )
+            state["target"] = resolved_target
+            target = resolved_target
 
         # ==================================================================
         # 5. Before / after statistics
