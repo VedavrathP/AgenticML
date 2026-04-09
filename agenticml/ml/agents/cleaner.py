@@ -279,33 +279,34 @@ Create a cleaning plan with specific steps and rationale."""
 def _filter_target_operations(steps: list, target: str) -> list:
     """
     Filter out any operations that would affect the target column.
-    
-    This is a safety measure to ensure the target is never dropped or modified.
+
+    Case-insensitive so that a lowercased target (e.g. 'overall_impact')
+    is still protected even when ``target`` retains its original casing.
     """
+    target_lower = target.lower()
     filtered = []
-    
+
     for step in steps:
         action = step.get("action", "")
         column = step.get("column")
         params = step.get("params", {})
-        
-        # Skip if trying to drop the target
-        if action == "drop_column" and column == target:
+
+        if action == "drop_column" and column and column.lower() == target_lower:
             continue
-        
-        # Skip if target is in columns list for drop_columns
+
         if action == "drop_columns":
             columns = params.get("columns", [])
-            if target in columns:
-                columns = [c for c in columns if c != target]
-                if not columns:
+            safe_cols = [c for c in columns if c.lower() != target_lower]
+            if len(safe_cols) < len(columns):
+                if not safe_cols:
                     continue
-                step["params"]["columns"] = columns
-        
-        # Skip if trying to modify target in certain ways
-        if column == target and action in ["clip_outliers", "convert_dtype"]:
+                step = {**step, "params": {**params, "columns": safe_cols}}
+
+        if column and column.lower() == target_lower and action in (
+            "clip_outliers", "convert_dtype"
+        ):
             continue
-        
+
         filtered.append(step)
-    
+
     return filtered

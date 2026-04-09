@@ -68,6 +68,10 @@ Notes on outlier handling:
 
 Rules:
 - NEVER drop or modify the target column.
+- NEVER drop feature columns just because they are correlated with each other
+  or with the target. High feature-target correlation is GOOD — it means the
+  feature is predictive. High feature-feature correlation is handled later by
+  the Feature Engineering Agent (ratios, interactions), NOT by dropping here.
 - Handle outliers in feature columns using remove_outliers or clip_outliers
   based on the outlier summary provided.
 - Be conservative -- preserve as much useful data as possible.
@@ -260,17 +264,18 @@ class DataPreprocessingAgent(BaseAgent):
             f"Deterministic Suggestions:\n{json.dumps(base_suggestions, indent=2)}\n\n"
             "Requirements:\n"
             f"1. NEVER drop or modify the target column: {target}\n"
-            "2. Consider dropping columns with >50% missing values\n"
-            "3. Drop constant columns\n"
-            "4. Handle PII columns (drop if not needed for prediction)\n"
-            "5. Address leakage risks (drop leaky columns)\n"
-            "6. Fill missing values in important columns\n"
-            "7. Remove duplicate rows\n"
-            "8. Handle outliers: use remove_outliers (drops rows) when outlier "
+            "2. NEVER drop feature columns because they correlate with each other "
+            "or with the target — high correlation with the target is DESIRABLE "
+            "(it means the feature is predictive). Correlated feature pairs are "
+            "handled by the Feature Engineering Agent, not here.\n"
+            "3. Consider dropping columns with >50% missing values\n"
+            "4. Drop constant columns\n"
+            "5. Handle PII columns (drop if not needed for prediction)\n"
+            "6. Address leakage risks (drop leaky columns)\n"
+            "7. Fill missing values in important columns\n"
+            "8. Remove duplicate rows\n"
+            "9. Handle outliers: use remove_outliers (drops rows) when outlier "
             "percentage is small (<=10%); use clip_outliers when it is large (>10%)\n"
-            "9. Drop one column from each highly correlated feature pair to "
-            "reduce multicollinearity (prefer dropping the column with more "
-            "missing values or less interpretability)\n"
             "10. Be conservative -- preserve as much useful data as possible\n\n"
             "Respond with the JSON object described in the system prompt."
         )
@@ -294,7 +299,13 @@ class DataPreprocessingAgent(BaseAgent):
 # ======================================================================
 
 def _filter_target_operations(steps: list[dict], target: str) -> list[dict]:
-    """Remove any cleaning operations that would drop or modify the target."""
+    """Remove any cleaning operations that would drop or modify the target.
+
+    Comparison is case-insensitive so that a lowercased target (e.g.
+    'overall_impact') is still protected even when ``target`` was stored
+    with its original casing ('Overall_Impact').
+    """
+    target_lower = target.lower()
     filtered: list[dict] = []
 
     for step in steps:
@@ -302,18 +313,20 @@ def _filter_target_operations(steps: list[dict], target: str) -> list[dict]:
         column = step.get("column")
         params = step.get("params", {})
 
-        if action == "drop_column" and column == target:
+        if action == "drop_column" and column and column.lower() == target_lower:
             continue
 
         if action == "drop_columns":
             columns = params.get("columns", [])
-            if target in columns:
-                columns = [c for c in columns if c != target]
-                if not columns:
+            safe_cols = [c for c in columns if c.lower() != target_lower]
+            if len(safe_cols) < len(columns):
+                if not safe_cols:
                     continue
-                step = {**step, "params": {**params, "columns": columns}}
+                step = {**step, "params": {**params, "columns": safe_cols}}
 
-        if column == target and action in ("clip_outliers", "remove_outliers", "convert_dtype"):
+        if column and column.lower() == target_lower and action in (
+            "clip_outliers", "remove_outliers", "convert_dtype"
+        ):
             continue
 
         filtered.append(step)
