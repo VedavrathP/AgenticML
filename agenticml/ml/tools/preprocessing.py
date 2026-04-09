@@ -14,6 +14,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
+from agenticml.ml.tools.data_io import resolve_column_name
+
 
 def build_preprocess_pipeline(
     df: pd.DataFrame,
@@ -33,6 +35,7 @@ def build_preprocess_pipeline(
     Returns:
         Tuple of (ColumnTransformer, list of feature column names)
     """
+    target = resolve_column_name(df, target)
     # Get feature columns (exclude target)
     feature_cols = [col for col in df.columns if col != target]
     
@@ -126,6 +129,7 @@ def split_data(
     Returns:
         Dict with split data and metadata
     """
+    target = resolve_column_name(df, target)
     X = df.drop(columns=[target])
     y = df[target]
     

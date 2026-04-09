@@ -18,7 +18,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from agenticml.agents.base_agent import BaseAgent
 from agenticml.ml.config import get_config
-from agenticml.ml.tools.data_io import load_dataframe, save_dataframe
+from agenticml.ml.tools.data_io import load_dataframe, save_dataframe, resolve_column_name
 from agenticml.ml.tools.preprocessing import (
     build_preprocess_pipeline,
     split_data,
@@ -142,6 +142,18 @@ class FeatureEngineeringAgent(BaseAgent):
             add_error(state, self.name, f"Failed to load data: {exc}")
             record_execution(state, self.name, status="failed")
             return state
+
+        # Sync target name in case cleaning renamed columns (e.g. lowercase)
+        resolved_target = resolve_column_name(df, target)
+        if resolved_target != target:
+            log_decision(
+                state, self.name,
+                f"Resolved target column: '{target}' → '{resolved_target}'",
+                "Column name changed by cleaning (e.g. lowercase); syncing state.",
+                {"previous_target": target, "resolved_target": resolved_target},
+            )
+            state["target"] = resolved_target
+            target = resolved_target
 
         # ==================================================================
         # 2. Profile cleaned data & enrich with skewness / target corr

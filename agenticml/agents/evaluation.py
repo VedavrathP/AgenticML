@@ -24,7 +24,7 @@ from agenticml.state.workflow_state import (
     record_execution,
 )
 from agenticml.ml.config import get_config
-from agenticml.ml.tools.data_io import load_dataframe
+from agenticml.ml.tools.data_io import load_dataframe, resolve_column_name
 from agenticml.ml.tools.evaluation import (
     evaluate_model,
     cross_validate_model,
@@ -227,6 +227,8 @@ class EvaluationAgent(BaseAgent):
 
         try:
             train_df = load_dataframe(train_path)
+            target = resolve_column_name(train_df, target)
+            state["target"] = target
             X_train = train_df.drop(columns=[target]).values
             y_train = train_df[target].values
 

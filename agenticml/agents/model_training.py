@@ -31,7 +31,7 @@ from agenticml.state.workflow_state import (
     record_execution,
 )
 from agenticml.ml.config import get_config
-from agenticml.ml.tools.data_io import load_dataframe
+from agenticml.ml.tools.data_io import load_dataframe, resolve_column_name
 from agenticml.ml.tools.model_trainers import TOOL_REGISTRY, get_tool_schemas
 from agenticml.ml.tools.modeling import get_model_info, get_baseline_model
 from agenticml.ml.tools.evaluation import evaluate_model
@@ -146,6 +146,8 @@ class ModelTrainingAgent(BaseAgent):
 
         try:
             train_df = load_dataframe(train_path)
+            target = resolve_column_name(train_df, target)
+            state["target"] = target
             X_train = train_df.drop(columns=[target]).values
             y_train = train_df[target].values
         except Exception as exc:
