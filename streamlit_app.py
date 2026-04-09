@@ -396,13 +396,18 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
     st.title("SwayamML")
-    st.caption("Orchestrator-Centered ML Pipeline")
+    try:
+        from agenticml import __version__ as _ver
+        st.caption(f"Orchestrator-Centered ML Pipeline · v{_ver}")
+    except Exception:
+        st.caption("Orchestrator-Centered ML Pipeline")
     st.markdown("---")
 
     uploaded_file = st.file_uploader("Upload dataset", type=["csv", "xlsx", "xls"])
 
     if uploaded_file is not None:
-        data_dir = os.path.join("runs", "_uploads")
+        _upload_base = "/tmp/agenticml_runs" if not os.access(".", os.W_OK) else "runs"
+        data_dir = os.path.join(_upload_base, "_uploads")
         os.makedirs(data_dir, exist_ok=True)
         file_path = os.path.join(data_dir, uploaded_file.name)
         with open(file_path, "wb") as f:
@@ -474,7 +479,9 @@ if user_query:
 
     if ws is None:
         run_id = generate_run_id()
-        run_dir = create_run_directory("runs", run_id)
+        # Use /tmp on read-only cloud filesystems; fall back to local "runs/"
+        _base_runs = "/tmp/agenticml_runs" if not os.access(".", os.W_OK) else "runs"
+        run_dir = create_run_directory(_base_runs, run_id)
         ws = create_initial_state(
             run_id=run_id,
             file_path=file_path,

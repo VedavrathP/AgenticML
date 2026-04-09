@@ -13,6 +13,6 @@ Subpackages:
     services - LLM and artifact services
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"  # fix: resolve target column after cleaning renames
 
 from agenticml import ml  # noqa: F401 — backward compatibility
