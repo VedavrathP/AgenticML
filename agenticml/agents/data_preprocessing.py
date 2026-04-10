@@ -135,6 +135,7 @@ class DataPreprocessingAgent(BaseAgent):
 
         cleaning_steps = llm_plan.get("cleaning_steps", [])
         cleaning_steps = _filter_target_operations(cleaning_steps, target)
+        cleaning_steps = _guard_outlier_removal(cleaning_steps, df)
 
         cleaning_plan = {
             "steps": cleaning_steps,
@@ -274,8 +275,15 @@ class DataPreprocessingAgent(BaseAgent):
             "6. Address leakage risks (drop leaky columns)\n"
             "7. Fill missing values in important columns\n"
             "8. Remove duplicate rows\n"
-            "9. Handle outliers: use remove_outliers (drops rows) when outlier "
-            "percentage is small (<=10%); use clip_outliers when it is large (>10%)\n"
+            "9. Handle outliers CONSERVATIVELY:\n"
+            "   - ONLY use remove_outliers when the outlier percentage is VERY small (<5%) "
+            "AND the dataset has >5000 rows. For smaller datasets, prefer clip_outliers "
+            "or NO outlier handling at all.\n"
+            "   - NEVER apply remove_outliers to multiple columns — it compounds row loss "
+            "dramatically (removing 10% per column across 5 columns can eliminate 40%+ of data).\n"
+            "   - For classification tasks, extreme values in feature columns may correspond "
+            "to rare but valid classes — removing them destroys minority class representation.\n"
+            "   - When in doubt, DO NOT handle outliers. Prefer clip_outliers over remove_outliers.\n"
             "10. Be conservative -- preserve as much useful data as possible\n\n"
             "Respond with the JSON object described in the system prompt."
         )
@@ -297,6 +305,70 @@ class DataPreprocessingAgent(BaseAgent):
 # ======================================================================
 # Module-level helper
 # ======================================================================
+
+def _guard_outlier_removal(steps: list[dict], df) -> list[dict]:
+    """Convert remove_outliers → clip_outliers when row loss would exceed 15%.
+
+    Applying remove_outliers to many columns compounds: removing 10% per column
+    across 11 columns can eliminate 60%+ of rows, destroying minority classes.
+    This guard estimates cumulative row loss and downgrades to clip_outliers
+    when the plan is too aggressive.
+    """
+    import pandas as pd
+    import numpy as np
+
+    n_rows = len(df)
+    remove_steps = [s for s in steps if s.get("action") == "remove_outliers"]
+
+    # Estimate total rows that would be removed (union approximation)
+    pct_removed = 0.0
+    if remove_steps:
+        outlier_mask = pd.Series([False] * n_rows, index=df.index)
+        for step in remove_steps:
+            col = step.get("column")
+            if col and col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+                params = step.get("params", {})
+                method = params.get("method", "iqr")
+                threshold = params.get("threshold", 1.5)
+                series = df[col].dropna()
+                if method == "iqr":
+                    q1, q3 = series.quantile(0.25), series.quantile(0.75)
+                    iqr = q3 - q1
+                    mask = (df[col] < q1 - threshold * iqr) | (df[col] > q3 + threshold * iqr)
+                else:
+                    mean, std = series.mean(), series.std()
+                    mask = (df[col] - mean).abs() > threshold * std
+                outlier_mask = outlier_mask | mask.fillna(False)
+        pct_removed = outlier_mask.sum() / n_rows
+
+    if pct_removed > 0.15:
+        # Downgrade all remove_outliers to clip_outliers
+        guarded = []
+        for step in steps:
+            if step.get("action") == "remove_outliers":
+                step = {**step, "action": "clip_outliers",
+                        "rationale": (step.get("rationale", "") +
+                                      f" [auto-downgraded: estimated {pct_removed:.0%} row loss exceeds 15% threshold]")}
+            guarded.append(step)
+        return guarded
+
+    # Also guard clip_outliers when applied to many columns on small datasets —
+    # clipping distorts feature distributions for minority classes
+    clip_steps = [s for s in steps if s.get("action") == "clip_outliers"]
+    if n_rows < 5000 and len(clip_steps) > 3:
+        # Keep only the 3 most impactful clip steps (first 3 as LLM ordered them)
+        clip_count = 0
+        guarded = []
+        for step in steps:
+            if step.get("action") == "clip_outliers":
+                clip_count += 1
+                if clip_count > 3:
+                    continue  # drop excess clip steps
+            guarded.append(step)
+        return guarded
+
+    return steps
+
 
 def _filter_target_operations(steps: list[dict], target: str) -> list[dict]:
     """Remove any cleaning operations that would drop or modify the target.
